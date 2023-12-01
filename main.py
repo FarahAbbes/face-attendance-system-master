@@ -1,155 +1,39 @@
-import os.path
-import datetime
-import pickle
-
-import tkinter as tk
 import cv2
-from PIL import Image, ImageTk
-import face_recognition
+import os
 
-import util
-from test import test
+cap = cv2.VideoCapture(0)
+cap.set(3, 640)
+cap.set(4, 480)
+imgBackground = cv2.imread('C:/Users/USER/Desktop/face-attendance-system-master/Resources/background.PNG')
+folderModePath = 'C:\\Users\\USER\\Desktop\\face-attendance-system-master\\Resources\\Modes'  # Double backslashes for Windows paths
+modePathList = os.listdir(folderModePath)
+imgModeList = []
 
+for path in modePathList:
+    imgModeList.append(cv2.imread(os.path.join(folderModePath, path)))
 
-class App:
-    def __init__(self):
-        self.main_window = tk.Tk()
-        self.main_window.geometry("1200x520+350+100")
+#print(len(imgModeList))  # Corrected variable name
 
-        self.login_button_main_window = util.get_button(self.main_window, 'login', 'green', self.login)
-        self.login_button_main_window.place(x=750, y=200)
+while True:
+    success, img = cap.read()
 
-        self.logout_button_main_window = util.get_button(self.main_window, 'logout', 'red', self.logout)
-        self.logout_button_main_window.place(x=750, y=300)
+    # Vérifier que la capture vidéo a réussi
+    if not success:
+        print("Échec de la capture d'image.")
+        break
 
-        self.register_new_user_button_main_window = util.get_button(self.main_window, 'register new user', 'gray',
-                                                                    self.register_new_user, fg='black')
-        self.register_new_user_button_main_window.place(x=750, y=400)
+    # Vérifier les dimensions de l'image capturée
+    if img is not None and img.shape[0] > 0 and img.shape[1] > 0:
+        imgBackground[162:162+480, 55:55+640] = img
+        imgBackground[44:44+ 633, 808:808+414] = imgModeList[0]
 
-        self.webcam_label = util.get_img_label(self.main_window)
-        self.webcam_label.place(x=10, y=0, width=700, height=500)
+        cv2.imshow("Webcam", img)
+        cv2.imshow("Face Attendence", imgBackground)
 
-        self.add_webcam(self.webcam_label)
+    # Attendre 1 milliseconde et vérifier si une touche est pressée
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-        self.db_dir = './db'
-        if not os.path.exists(self.db_dir):
-            os.mkdir(self.db_dir)
-
-        self.log_path = './log.txt'
-
-    def add_webcam(self, label):
-        if 'cap' not in self.__dict__:
-            self.cap = cv2.VideoCapture(2)
-
-        self._label = label
-        self.process_webcam()
-
-    def process_webcam(self):
-        ret, frame = self.cap.read()
-
-        self.most_recent_capture_arr = frame
-        img_ = cv2.cvtColor(self.most_recent_capture_arr, cv2.COLOR_BGR2RGB)
-        self.most_recent_capture_pil = Image.fromarray(img_)
-        imgtk = ImageTk.PhotoImage(image=self.most_recent_capture_pil)
-        self._label.imgtk = imgtk
-        self._label.configure(image=imgtk)
-
-        self._label.after(20, self.process_webcam)
-
-    def login(self):
-
-        label = test(
-                image=self.most_recent_capture_arr,
-                model_dir='/home/phillip/Desktop/todays_tutorial/27_face_recognition_spoofing/code/face-attendance-system/Silent-Face-Anti-Spoofing/resources/anti_spoof_models',
-                device_id=0
-                )
-
-        if label == 1:
-
-            name = util.recognize(self.most_recent_capture_arr, self.db_dir)
-
-            if name in ['unknown_person', 'no_persons_found']:
-                util.msg_box('Ups...', 'Unknown user. Please register new user or try again.')
-            else:
-                util.msg_box('Welcome back !', 'Welcome, {}.'.format(name))
-                with open(self.log_path, 'a') as f:
-                    f.write('{},{},in\n'.format(name, datetime.datetime.now()))
-                    f.close()
-
-        else:
-            util.msg_box('Hey, you are a spoofer!', 'You are fake !')
-
-    def logout(self):
-
-        label = test(
-                image=self.most_recent_capture_arr,
-                model_dir='/home/phillip/Desktop/todays_tutorial/27_face_recognition_spoofing/code/face-attendance-system/Silent-Face-Anti-Spoofing/resources/anti_spoof_models',
-                device_id=0
-                )
-
-        if label == 1:
-
-            name = util.recognize(self.most_recent_capture_arr, self.db_dir)
-
-            if name in ['unknown_person', 'no_persons_found']:
-                util.msg_box('Ups...', 'Unknown user. Please register new user or try again.')
-            else:
-                util.msg_box('Hasta la vista !', 'Goodbye, {}.'.format(name))
-                with open(self.log_path, 'a') as f:
-                    f.write('{},{},out\n'.format(name, datetime.datetime.now()))
-                    f.close()
-
-        else:
-            util.msg_box('Hey, you are a spoofer!', 'You are fake !')
-
-
-    def register_new_user(self):
-        self.register_new_user_window = tk.Toplevel(self.main_window)
-        self.register_new_user_window.geometry("1200x520+370+120")
-
-        self.accept_button_register_new_user_window = util.get_button(self.register_new_user_window, 'Accept', 'green', self.accept_register_new_user)
-        self.accept_button_register_new_user_window.place(x=750, y=300)
-
-        self.try_again_button_register_new_user_window = util.get_button(self.register_new_user_window, 'Try again', 'red', self.try_again_register_new_user)
-        self.try_again_button_register_new_user_window.place(x=750, y=400)
-
-        self.capture_label = util.get_img_label(self.register_new_user_window)
-        self.capture_label.place(x=10, y=0, width=700, height=500)
-
-        self.add_img_to_label(self.capture_label)
-
-        self.entry_text_register_new_user = util.get_entry_text(self.register_new_user_window)
-        self.entry_text_register_new_user.place(x=750, y=150)
-
-        self.text_label_register_new_user = util.get_text_label(self.register_new_user_window, 'Please, \ninput username:')
-        self.text_label_register_new_user.place(x=750, y=70)
-
-    def try_again_register_new_user(self):
-        self.register_new_user_window.destroy()
-
-    def add_img_to_label(self, label):
-        imgtk = ImageTk.PhotoImage(image=self.most_recent_capture_pil)
-        label.imgtk = imgtk
-        label.configure(image=imgtk)
-
-        self.register_new_user_capture = self.most_recent_capture_arr.copy()
-
-    def start(self):
-        self.main_window.mainloop()
-
-    def accept_register_new_user(self):
-        name = self.entry_text_register_new_user.get(1.0, "end-1c")
-
-        embeddings = face_recognition.face_encodings(self.register_new_user_capture)[0]
-
-        file = open(os.path.join(self.db_dir, '{}.pickle'.format(name)), 'wb')
-        pickle.dump(embeddings, file)
-
-        util.msg_box('Success!', 'User was registered successfully !')
-
-        self.register_new_user_window.destroy()
-
-
-if __name__ == "__main__":
-    app = App()
-    app.start()
+# Libérer la capture vidéo et détruire toutes les fenêtres OpenCV
+cap.release()
+cv2.destroyAllWindows()
